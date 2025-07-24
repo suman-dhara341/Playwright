@@ -1,0 +1,56 @@
+name: Playwright E2E Tests
+
+on:
+  schedule:
+    - cron: "30 11 * * *" # Every day at 5:00pm IST (11:30 UTC)
+  workflow_dispatch: # Allow manual runs from GitHub UI
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
+      TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+      # Add other environment keys as needed
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Run Playwright tests and create JSON report
+        run: npx playwright test --reporter=json > test-results.json; exit 0
+
+      # Upload report as artifact (optional, for download/debug)
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: test-results.json
+
+      - name: Notify Slack with test results
+        if: always()
+        run: |
+          if jq '.suites[].specs[].tests[] | select(.status != "passed")' test-results.json | grep -q 'status'; then
+            ERRORS=$(jq -r '.suites[].specs[].tests[] | select(.status != "passed") | "\n• *Test*: \(.title)\n   *Error*: \(.error?.message // "See report")"' test-results.json)
+            STATUS=":x: FAIL"
+          else
+            ERRORS="All tests passed. :white_check_mark:"
+            STATUS=":white_check_mark: PASS"
+          fi
+
+          PAYLOAD="{
+            \"text\": \"*Playwright Results: $STATUS*\n$ERRORS\n<${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}|View Full Run>\"
+          }"
+          curl -X POST -H 'Content-type: application/json' --data "$PAYLOAD" $SLACK_WEBHOOK_URL
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
