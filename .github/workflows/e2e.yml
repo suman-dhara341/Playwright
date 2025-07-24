@@ -2,9 +2,12 @@ name: Playwright E2E Tests
 
 on:
   schedule:
-    - cron: "45 11 * * *" # Every day at 5:15pm IST (11:45 UTC)
-    - cron: "50 11 * * *" # Every day at 5:20pm IST (11:50 UTC)
-  workflow_dispatch:
+    - cron: "56 11 * * *" # Every day at 5:26pm IST (11:56 UTC)
+    - cron: "57 11 * * *" # Every day at 5:27pm IST (11:57 UTC)
+    - cron: "58 11 * * *" # Every day at 5:28pm IST (11:58 UTC)
+    - cron: "59 11 * * *" # Every day at 5:29pm IST (11:59 UTC)
+
+  workflow_dispatch: # Allow manual runs from GitHub UI
 
 jobs:
   test:
@@ -12,6 +15,7 @@ jobs:
     env:
       TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
       TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+      # Add other environment keys as needed
 
     steps:
       - uses: actions/checkout@v4
@@ -30,18 +34,18 @@ jobs:
       - name: Run Playwright tests and create JSON report
         run: npx playwright test --reporter=json > test-results.json; exit 0
 
+      # Upload report as artifact (optional, for download/debug)
       - name: Upload test results
         uses: actions/upload-artifact@v4
         with:
           name: playwright-results
           path: test-results.json
 
-      - name: Notify Slack with custom structure
+      - name: Notify Slack with test results
         if: always()
         run: |
-          PIPELINES="Login\nLogout\nAwards\nFeed page"
           if jq '.suites[].specs[].tests[] | select(.status != "passed")' test-results.json | grep -q 'status'; then
-            ERRORS=$(jq -r '.suites[].specs[].tests[] | select(.status != "passed") | "- *Test*: \(.title)\n  *Error*: \(.error?.message // "See report")\n"' test-results.json)
+            ERRORS=$(jq -r '.suites[].specs[].tests[] | select(.status != "passed") | "\n• *Test*: \(.title)\n   *Error*: \(.error?.message // "See report")"' test-results.json)
             STATUS=":x: FAIL"
           else
             ERRORS="All tests passed. :white_check_mark:"
@@ -49,15 +53,7 @@ jobs:
           fi
 
           PAYLOAD="{
-            \"blocks\": [
-              {\"type\": \"section\", \"text\": {\"type\": \"mrkdwn\", \"text\": \"*Playwright Results:* $STATUS\"}},
-              {\"type\": \"divider\"},
-              {\"type\": \"section\", \"text\": {\"type\": \"mrkdwn\", \"text\": \"*Test Scenarios Checked:*\n$PIPELINES\"}},
-              {\"type\": \"divider\"},
-              {\"type\": \"section\", \"text\": {\"type\": \"mrkdwn\", \"text\": \"*Test Results:*\n$ERRORS\"}},
-              {\"type\": \"divider\"},
-              {\"type\": \"context\", \"elements\": [{\"type\": \"mrkdwn\", \"text\": \"<${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}|View Full Run on GitHub Actions>\"}] }
-            ]
+            \"text\": \"*Playwright Results: $STATUS*\n$ERRORS\n<${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}|View Full Run>\"
           }"
           curl -X POST -H 'Content-type: application/json' --data "$PAYLOAD" $SLACK_WEBHOOK_URL
         env:
