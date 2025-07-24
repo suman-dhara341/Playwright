@@ -1,25 +1,48 @@
 name: Playwright E2E Tests
 
 on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
   schedule:
     - cron: "30 11 * * *" # Every day at 5:00pm IST (11:30 UTC)
   workflow_dispatch: # Allow manual runs from GitHub UI
+    inputs:
+      environment:
+        description: "Environment to test against"
+        required: true
+        default: "alpha"
+        type: choice
+        options:
+          - alpha
+          - prod
+          - local
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [chromium]
+
     env:
       TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
       TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
-      # Add other environment keys as needed
+      VITE_STAGE_NAME: ${{ github.event.inputs.environment || 'alpha' }}
+      CI: true
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -27,30 +50,166 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
 
-      - name: Run Playwright tests and create JSON report
-        run: npx playwright test --reporter=json > test-results.json; exit 0
+      - name: Create test results directory
+        run: mkdir -p test-results
 
-      # Upload report as artifact (optional, for download/debug)
+      - name: Run Playwright tests
+        id: playwright
+        run: |
+          npx playwright test --project=${{ matrix.project }} --reporter=html,json:test-results/results.json --output-dir=test-results
+        continue-on-error: true
+
       - name: Upload test results
         uses: actions/upload-artifact@v4
-        with:
-          name: playwright-results
-          path: test-results.json
-
-      - name: Notify Slack with test results
         if: always()
+        with:
+          name: playwright-results-${{ matrix.project }}
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
+
+      - name: Parse test results
+        if: always()
+        id: test-results
         run: |
-          if jq '.suites[].specs[].tests[] | select(.status != "passed")' test-results.json | grep -q 'status'; then
-            ERRORS=$(jq -r '.suites[].specs[].tests[] | select(.status != "passed") | "\n• *Test*: \(.title)\n   *Error*: \(.error?.message // "See report")"' test-results.json)
-            STATUS=":x: FAIL"
+          if [ -f "test-results/results.json" ]; then
+            TOTAL_TESTS=$(jq '.suites[].specs[].tests | length' test-results/results.json | awk '{sum += $1} END {print sum}')
+            PASSED_TESTS=$(jq '[.suites[].specs[].tests[] | select(.status == "passed")] | length' test-results/results.json)
+            FAILED_TESTS=$(jq '[.suites[].specs[].tests[] | select(.status == "failed")] | length' test-results/results.json)
+            SKIPPED_TESTS=$(jq '[.suites[].specs[].tests[] | select(.status == "skipped")] | length' test-results/results.json)
+            
+            echo "total_tests=$TOTAL_TESTS" >> $GITHUB_OUTPUT
+            echo "passed_tests=$PASSED_TESTS" >> $GITHUB_OUTPUT
+            echo "failed_tests=$FAILED_TESTS" >> $GITHUB_OUTPUT
+            echo "skipped_tests=$SKIPPED_TESTS" >> $GITHUB_OUTPUT
+            
+            if [ "$FAILED_TESTS" -gt 0 ]; then
+              echo "test_status=failed" >> $GITHUB_OUTPUT
+            else
+              echo "test_status=passed" >> $GITHUB_OUTPUT
+            fi
           else
-            ERRORS="All tests passed. :white_check_mark:"
-            STATUS=":white_check_mark: PASS"
+            echo "total_tests=0" >> $GITHUB_OUTPUT
+            echo "passed_tests=0" >> $GITHUB_OUTPUT
+            echo "failed_tests=0" >> $GITHUB_OUTPUT
+            echo "skipped_tests=0" >> $GITHUB_OUTPUT
+            echo "test_status=failed" >> $GITHUB_OUTPUT
           fi
 
-          PAYLOAD="{
-            \"text\": \"*Playwright Results: $STATUS*\n$ERRORS\n<${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}|View Full Run>\"
-          }"
-          curl -X POST -H 'Content-type: application/json' --data "$PAYLOAD" $SLACK_WEBHOOK_URL
+      - name: Generate failure details
+        if: always() && steps.test-results.outputs.test_status == 'failed'
+        id: failure-details
+        run: |
+          if [ -f "test-results/results.json" ]; then
+            FAILED_TESTS_DETAILS=$(jq -r '
+              [.suites[].specs[].tests[] | select(.status == "failed")] |
+              map("• *" + .title + "*\n  _File:_ " + (.file | split("/") | last) + "\n  _Error:_ " + (.error.message // "See full report for details")) |
+              join("\n\n")
+            ' test-results/results.json)
+            
+            # Truncate if too long for Slack
+            if [ ${#FAILED_TESTS_DETAILS} -gt 2500 ]; then
+              FAILED_TESTS_DETAILS="${FAILED_TESTS_DETAILS:0:2500}...\n\n_View full report for complete details_"
+            fi
+            
+            echo "failed_details<<EOF" >> $GITHUB_OUTPUT
+            echo "$FAILED_TESTS_DETAILS" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+
+  notify-slack:
+    runs-on: ubuntu-latest
+    needs: test
+    if: always()
+    steps:
+      - name: Send Slack notification
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          custom_payload: |
+            {
+              "text": "Playwright Test Results",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "${{ needs.test.outputs.test_status == 'passed' && '✅' || '❌' }} Playwright E2E Test Results"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Repository:*\n${{ github.repository }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Branch:*\n${{ github.ref_name }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Commit:*\n<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Environment:*\n${{ env.VITE_STAGE_NAME }}"
+                    }
+                  ]
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Total Tests:*\n${{ needs.test.outputs.total_tests || 'N/A' }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Passed:*\n${{ needs.test.outputs.passed_tests || '0' }} ✅"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Failed:*\n${{ needs.test.outputs.failed_tests || '0' }} ❌"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Skipped:*\n${{ needs.test.outputs.skipped_tests || '0' }} ⏭️"
+                    }
+                  ]
+                },
+                ${{ needs.test.outputs.test_status == 'failed' && format('{
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Failed Tests:*\n{0}"
+                  }
+                },', needs.test.outputs.failed_details) || '' }}
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Workflow Run"
+                      },
+                      "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    },
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Test Report"
+                      },
+                      "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    }
+                  ]
+                }
+              ]
+            }
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

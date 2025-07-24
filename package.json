@@ -10,7 +10,16 @@
     "preview": "vite preview",
     "test:e2e": "npx playwright test",
     "test:e2e:report": "npx playwright show-report",
-    "test:e2e:headed": "npx playwright test --headed"
+    "test:e2e:headed": "npx playwright test --headed",
+    "test:e2e:debug": "npx playwright test --debug",
+    "test:e2e:ui": "npx playwright test --ui",
+    "test:auth": "npx playwright test tests/auth/",
+    "test:awards": "npx playwright test tests/awards/",
+    "test:badges": "npx playwright test tests/badges/",
+    "test:feed": "npx playwright test tests/feed/",
+    "test:smoke": "npx playwright test tests/auth/login.spec.ts",
+    "test:ci": "npx playwright test --reporter=html,json:test-results/results.json",
+    "setup:secrets": "powershell -ExecutionPolicy Bypass -File setup-github-secrets.ps1"
   },
   "dependencies": {
     "@emotion/react": "^11.13.0",

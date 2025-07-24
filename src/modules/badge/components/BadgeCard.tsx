@@ -47,6 +47,7 @@ const BadgeCard = ({ badges, badgeType, styleClasses }: any) => {
             style={badgeType === "All Badges" ? { boxShadow: 'rgba(0, 0, 0, 0.1) 0px 1px 4px' } : {}}
             key={index}
             onClick={() => handleCardClick(badge)}
+            id={index === 0 ? "badge_select" : ""}
           >
             <div
               className={`${
