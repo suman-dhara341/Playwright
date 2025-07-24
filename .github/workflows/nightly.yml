@@ -2,8 +2,10 @@ name: Nightly E2E Tests
 
 on:
   schedule:
-    # Run at 2:00 AM UTC (7:30 AM IST) every day
-    - cron: "0 2 * * *"
+    - cron: "0 2 * * *" # 2:00am UTC
+    - cron: "53 16 * * *" # 10:23pm IST (16:53 UTC)
+    - cron: "54 16 * * *" # 10:24pm IST (16:54 UTC)
+
   workflow_dispatch:
     inputs:
       environment:
