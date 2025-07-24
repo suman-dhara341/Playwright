@@ -4,7 +4,9 @@ on:
   schedule:
     - cron: "0 2 * * *" # 2:00am UTC
     - cron: "53 16 * * *" # 10:23pm IST (16:53 UTC)
-    - cron: "54 16 * * *" # 10:24pm IST (16:54 UTC)
+    - cron: "57 16 * * *" # 10:24pm IST (16:54 UTC)
+    - cron: "58 16 * * *" # 10:24pm IST (16:54 UTC)
+    - cron: "59 16 * * *" # 10:24pm IST (16:54 UTC)
 
   workflow_dispatch:
     inputs:
