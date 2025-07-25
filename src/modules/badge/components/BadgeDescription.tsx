@@ -152,14 +152,10 @@ const BadgeDescription: React.FC = () => {
         style={{ boxShadow: "rgba(0, 0, 0, 0.1) 0px 1px 4px" }}
       >
         <div className="max-w-3xl">
-<<<<<<< HEAD
-          <h4 id="badge_name" className="text-2xl !font-semibold !text-[#585DF9] mb-[8px]">
-=======
           <h4
             id="badge_name"
             className="text-2xl !font-semibold !text-[#585DF9] mb-[8px]"
           >
->>>>>>> temp
             {badgeDescription?.data.name}
           </h4>
           <p className="text-base">{badgeDescription?.data?.description}</p>
