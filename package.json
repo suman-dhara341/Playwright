@@ -19,7 +19,8 @@
     "test:feed": "npx playwright test tests/feed/",
     "test:smoke": "npx playwright test tests/auth/login.spec.ts",
     "test:ci": "npx playwright test --reporter=html,json:test-results/results.json",
-    "setup:secrets": "powershell -ExecutionPolicy Bypass -File setup-github-secrets.ps1"
+    "setup:secrets": "powershell -ExecutionPolicy Bypass -File setup-github-secrets.ps1",
+    "test:e2e:ci": "start-server-and-test dev http://localhost:5173 \"playwright test --reporter=line | tee playwright-test.log\""
   },
   "dependencies": {
     "@emotion/react": "^11.13.0",
