@@ -41,8 +41,12 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
           SLACK_COLOR: ${{ job.status == 'success' && 'good' || 'danger' }}
           SLACK_MESSAGE: |
-            *📣 Playwright Tests Result:* `${{ job.status }}`
-            🧪 *Workflow:* ${{ github.workflow }}
-            🔁 *Commit:* ${{ github.sha }}
-            📦 *Repo:* ${{ github.repository }}
-            🔗 <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run Logs>
+            *${{ job.status == 'success' && ':white_check_mark:' || ':x:' }} Playwright Tests Result:* `${{ job.status }}`
+            *Workflow:* `${{ github.workflow }}`
+            *Repo:* `${{ github.repository }}`
+            *Commit:* `${{ github.sha }}`
+            *Run Logs :arrow_down:*
+            ```
+            ${{ steps.testlog.outputs.LOG }}
+            ```
+            <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Full Run Details>
