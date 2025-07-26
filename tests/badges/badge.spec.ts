@@ -1,5 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { EnvConfig } from "../../src/config/config";
+import "dotenv/config"; 
+
 
 test("Badge Page", async ({ page, request }) => {
   await page.addInitScript(() => {

@@ -1,5 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { EnvConfig } from "../../src/config/config";
+import "dotenv/config"; 
+
 
 test("Award Page", async ({ page, request }) => {
   // Pre-fill onboarding flags in localStorage (for UI onboarding)

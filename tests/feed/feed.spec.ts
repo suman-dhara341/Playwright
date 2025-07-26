@@ -1,5 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { EnvConfig } from "../../src/config/config";
+import "dotenv/config"; 
+
 
 test("Feed page", async ({ page, request }) => {
   await page.addInitScript(() => {

@@ -1,5 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { EnvConfig } from "../../src/config/config";
+import 'dotenv/config'; 
+
 
 test("user can login successfully", async ({ page, request }) => {
   const API_BASE_URL = EnvConfig.apiUrl;
