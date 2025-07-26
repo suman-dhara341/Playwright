@@ -1,11 +1,11 @@
 import { test, expect } from "@playwright/test";
-import { EnvConfig } from "../../src/config/config";
 import 'dotenv/config'; 
+import { EnvConfigPlaywright } from "../envConfig";
 
 
 test("user can login successfully", async ({ page, request }) => {
-  const API_BASE_URL = EnvConfig.apiUrl;
-  const USER_BASE_URL = EnvConfig.userUrl;
+  const API_BASE_URL = EnvConfigPlaywright.apiUrl;
+  const USER_BASE_URL = EnvConfigPlaywright.userUrl;
   const email = process.env.TEST_USER_EMAIL ?? "";
   const password = process.env.TEST_USER_PASSWORD ?? "";
 

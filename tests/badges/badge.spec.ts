@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
-import { EnvConfig } from "../../src/config/config";
 import "dotenv/config"; 
+import { EnvConfigPlaywright } from "../envConfig";
 
 
 test("Badge Page", async ({ page, request }) => {
@@ -10,8 +10,8 @@ test("Badge Page", async ({ page, request }) => {
     localStorage.setItem("badgesDetailsTour", "true");
   });
 
-  const API_BASE_URL = EnvConfig.apiUrl;
-  const USER_BASE_URL = EnvConfig.userUrl;
+  const API_BASE_URL = EnvConfigPlaywright.apiUrl;
+  const USER_BASE_URL = EnvConfigPlaywright.userUrl;
   const email = "tokivi7552@baxima.com";
   const password = "Sum@n123";
 

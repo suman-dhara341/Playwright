@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
-import { EnvConfig } from "../../src/config/config";
 import "dotenv/config"; 
+import { EnvConfigPlaywright } from "../envConfig";
 
 
 test("Feed page", async ({ page, request }) => {
@@ -9,8 +9,8 @@ test("Feed page", async ({ page, request }) => {
     localStorage.setItem("profileTour", "true");
   });
 
-  const API_BASE_URL = EnvConfig.apiUrl;
-  const USER_BASE_URL = EnvConfig.userUrl;
+  const API_BASE_URL = EnvConfigPlaywright.apiUrl;
+  const USER_BASE_URL = EnvConfigPlaywright.userUrl;
   // Always use environment variables for sensitive info!
   const email = process.env.TEST_USER_EMAIL;
   const password = process.env.TEST_USER_PASSWORD;
@@ -220,7 +220,7 @@ test("Feed page", async ({ page, request }) => {
 
     // 8. Activities API check
     const activityResponse = await request.get(
-      `${EnvConfig.apiUrl}/org/${USER_DATA.orgId}/notification/activity?userId=${USER_DATA.empId}&maxResults=20`,
+      `${EnvConfigPlaywright.apiUrl}/org/${USER_DATA.orgId}/notification/activity?userId=${USER_DATA.empId}&maxResults=20`,
       {
         headers: { authorization: `Bearer ${loginResponse.data.idToken}` },
       }
